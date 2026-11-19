@@ -1,0 +1,10 @@
+[
+  {
+    "repo": "matthummel-pa/wp-acreline",
+    "path": "packages/theme-desk"
+  },
+  {
+    "repo": "matthummel-pa/wp-cobbleandcandle",
+    "path": "packages/theme-desk"
+  }
+]
