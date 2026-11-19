@@ -1,0 +1,177 @@
+$problems[$key])
+        );
+    }
+
+    /**
+     * @param  array<int, WP_Post>  $tickets
+     * @param  array<string, string>  $categories
+     */
+    private static function echoList(array $tickets, string $supportEmail, array $categories): void
+    {
+        ?>
+        <div class="theme-desk-table">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col"><?php esc_html_e('Ticket', 'theme-desk'); ?></th>
+                <th scope="col"><?php esc_html_e('Subject', 'theme-desk'); ?></th>
+                <th scope="col"><?php esc_html_e('Created', 'theme-desk'); ?></th>
+                <th scope="col"><?php esc_html_e('Status', 'theme-desk'); ?></th>
+                <th scope="col"><span class="screen-reader-text"><?php esc_html_e('Actions', 'theme-desk'); ?></span></th>
+              </tr>
+            </thead>
+            <tbody>
+              <?php foreach ($tickets as $ticket) {
+                  $ticketRef = (string) get_post_meta($ticket->ID, 'theme_desk_ref', true);
+                  $status = (string) get_post_meta($ticket->ID, 'theme_desk_status', true);
+                  $priority = (string) get_post_meta($ticket->ID, 'theme_desk_priority', true);
+                  $category = (string) get_post_meta($ticket->ID, 'theme_desk_category', true);
+                  $created = (int) get_post_time('U', true, $ticket);
+                  $resend = wp_nonce_url(admin_url('admin-post.php?action=theme_desk_resend&ticket_id='.$ticket->ID), 'theme_desk_resend_'.$ticket->ID);
+                  $remove = wp_nonce_url(admin_url('admin-post.php?action=theme_desk_delete&ticket_id='.$ticket->ID), 'theme_desk_delete_'.$ticket->ID);
+                  $mailto = 'mailto:'.$supportEmail.'?subject='.rawurlencode('['.Desk::product().' '.$ticketRef.'] '.Desk::subject($ticket)).'&body='.rawurlencode(mb_substr(Desk::message($ticket), 0, 1200));
+                  ?>
+              <tr>
+                <td>
+                  <code><?php echo esc_html($ticketRef); ?></code>
+                  <?php if ($priority === 'urgent') { ?>
+                    <span class="theme-desk-pill is-urgent"><?php esc_html_e('Urgent', 'theme-desk'); ?></span>
+                  <?php } elseif ($priority === 'high') { ?>
+                    <span class="theme-desk-pill is-high"><?php esc_html_e('High', 'theme-desk'); ?></span>
+                  <?php } ?>
+                </td>
+                <td>
+                  <?php echo esc_html(Desk::subject($ticket)); ?>
+                  <?php if (isset($categories[$category])) { ?>
+                    <p class="theme-desk-meta"><?php echo esc_html($categories[$category]); ?></p>
+                  <?php } ?>
+                  <details class="theme-desk-message">
+                    <summary><?php esc_html_e('What was sent', 'theme-desk'); ?><span class="screen-reader-text"> <?php echo esc_html($ticketRef); ?></span></summary>
+                    <p><?php echo esc_html(Desk::message($ticket)); ?></p>
+                  </details>
+                </td>
+                <td><time datetime="<?php echo esc_attr(gmdate('c', $created)); ?>"><?php echo esc_html(sprintf(
+                    /* translators: %s: how long ago. */
+                    __('%s ago', 'theme-desk'),
+                    human_time_diff($created)
+                )); ?></time></td>
+                <td>
+                  <?php if ($status === 'sent') { ?>
+                    <span class="theme-desk-pill is-ok"><?php esc_html_e('Emailed', 'theme-desk'); ?></span>
+                  <?php } else { ?>
+                    <span class="theme-desk-pill is-bad"><?php esc_html_e('Not sent', 'theme-desk'); ?></span>
+                  <?php } ?>
+                </td>
+                <td>
+                  <ul class="theme-desk-actions">
+                    <?php if ($status !== 'sent') { ?>
+                      <li><a href="<?php echo esc_url($resend); ?>"><?php esc_html_e('Send again', 'theme-desk'); ?><span class="screen-reader-text"> <?php echo esc_html($ticketRef); ?></span></a></li>
+                      <li><a href="<?php echo esc_url($mailto); ?>"><?php esc_html_e('Email it yourself', 'theme-desk'); ?><span class="screen-reader-text"> <?php echo esc_html($ticketRef); ?></span></a></li>
+                    <?php } ?>
+                    <li><a href="<?php echo esc_url($remove); ?>"><?php esc_html_e('Remove', 'theme-desk'); ?><span class="screen-reader-text"> <?php echo esc_html($ticketRef); ?></span></a></li>
+                  </ul>
+                </td>
+              </tr>
+              <?php } ?>
+            </tbody>
+          </table>
+        </div>
+        <p class="description"><?php esc_html_e('Removing a ticket only takes it off this list. It does not unsend the email. The ten most recent tickets are shown.', 'theme-desk'); ?></p>
+        <?php
+    }
+
+    private static function echoMarkdown(string $markdown): void
+    {
+        $inList = false;
+        $paragraph = [];
+        $lines = preg_split("/\\n/", str_replace(["\\r\\n", "\\r"], "\\n", $markdown));
+        if (! is_array($lines)) {
+            return;
+        }
+        foreach ($lines as $line) {
+            $trim = trim($line);
+            if ($trim === '') {
+                self::echoParagraph($paragraph);
+                $paragraph = [];
+                $inList = self::closeList($inList);
+
+                continue;
+            }
+            if (str_starts_with($trim, '# ')) {
+                self::echoParagraph($paragraph);
+                $paragraph = [];
+                $inList = self::closeList($inList);
+
+                continue;
+            }
+            if (str_starts_with($trim, '### ') || str_starts_with($trim, '## ')) {
+                self::echoParagraph($paragraph);
+                $paragraph = [];
+                $inList = self::closeList($inList);
+                $heading = str_starts_with($trim, '### ') ? substr($trim, 4) : substr($trim, 3);
+                echo '<h4>';
+                self::echoInline($heading);
+                echo '</h4>';
+
+                continue;
+            }
+            if (str_starts_with($trim, '- ')) {
+                self::echoParagraph($paragraph);
+                $paragraph = [];
+                if (! $inList) {
+                    echo '<ul>';
+                    $inList = true;
+                }
+                echo '<li>';
+                self::echoInline(substr($trim, 2));
+                echo '</li>';
+
+                continue;
+            }
+            $inList = self::closeList($inList);
+            $paragraph[] = $trim;
+        }
+        self::echoParagraph($paragraph);
+        self::closeList($inList);
+    }
+
+    /**
+     * @param  list<string>  $paragraph
+     */
+    private static function echoParagraph(array $paragraph): void
+    {
+        if ($paragraph === []) {
+            return;
+        }
+        echo '<p>';
+        self::echoInline(implode(' ', $paragraph));
+        echo '</p>';
+    }
+
+    private static function closeList(bool $open): bool
+    {
+        if ($open) {
+            echo '</ul>';
+        }
+
+        return false;
+    }
+
+    private static function echoInline(string $text): void
+    {
+        $parts = preg_split('/\\*\\*(.+?)\\*\\*/', $text, -1, PREG_SPLIT_DELIM_CAPTURE);
+        if (! is_array($parts)) {
+            echo esc_html($text);
+
+            return;
+        }
+        foreach ($parts as $index => $part) {
+            if ($index % 2 === 1) {
+                echo '<strong>'.esc_html($part).'</strong>';
+
+                continue;
+            }
+            echo esc_html($part);
+        }
+    }
+}
