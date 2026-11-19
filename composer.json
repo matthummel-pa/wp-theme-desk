@@ -1,0 +1,21 @@
+{
+  "name": "matthummel/theme-desk",
+  "description": "Support desk for WordPress themes: tickets, a saved reference, a changelog, and a support note.",
+  "type": "library",
+  "license": "GPL-2.0-or-later",
+  "homepage": "https://github.com/matthummel-pa/wp-theme-desk",
+  "authors": [
+    {
+      "name": "Matt Hummel",
+      "homepage": "https://matthummel.com/"
+    }
+  ],
+  "require": {
+    "php": ">=8.1"
+  },
+  "autoload": {
+    "psr-4": {
+      "MattHummel\\ThemeDesk\\": "src/"
+    }
+  }
+}
