@@ -1,0 +1,35 @@
+.theme-desk {
+  max-width: 1100px; margin: 0 0 20px; padding: 22px 26px; background: #fff;
+  border: 1px solid #dcdcde; border-top: 3px solid var(--acre-accent, #1d2327); border-radius: 8px;
+}
+.theme-desk h2 { margin-top: 0; font-size: 22px; font-weight: 400; }
+.theme-desk-lede { margin: -2px 0 18px; font-size: 15px; color: #50575e; }
+.theme-desk-submit { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 8px; }
+.theme-desk-notes { display: grid; gap: 12px; margin: 0 0 18px; }
+@media (min-width: 782px) {
+  .theme-desk-notes { grid-template-columns: 1fr 1fr; }
+}
+.theme-desk-note { margin: 0; padding: 12px 14px; background: #f6f7f7; border-radius: 8px; }
+.theme-desk-note h3 { margin: 0 0 8px; font-size: 14px; }
+.theme-desk-note h4 { margin: 12px 0 6px; font-size: 13px; }
+.theme-desk-note p, .theme-desk-note ul { margin: 0 0 8px; }
+.theme-desk-note ul { padding-left: 1.2em; }
+.theme-desk-note li { margin: 0 0 4px; }
+.theme-desk-form .form-table th { width: 11rem; padding-left: 0; vertical-align: top; }
+.theme-desk-form .form-table td { padding-right: 0; }
+.theme-desk-req { color: #8a2424; }
+.theme-desk-error { margin: 6px 0 0; color: #8a2424; }
+.theme-desk-check { display: flex; align-items: flex-start; gap: 8px; margin: 0 0 10px; }
+.theme-desk-check input { margin-top: 3px; }
+.theme-desk-preview { margin-top: 8px; }
+.theme-desk-pill { display: inline-block; margin-left: 6px; padding: 0 8px; border-radius: 99px; font-size: 11px; font-weight: 600; line-height: 20px; vertical-align: middle; }
+.theme-desk-pill.is-ok { background: #edf7f1; color: #1f6b4a; }
+.theme-desk-pill.is-bad, .theme-desk-pill.is-urgent { background: #fcf0f1; color: #8a2424; }
+.theme-desk-pill.is-high { background: #fcf9e8; color: #6b5300; }
+.theme-desk-table { overflow: auto; }
+.theme-desk-table table { width: 100%; border-collapse: collapse; }
+.theme-desk-table th, .theme-desk-table td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #dcdcde; vertical-align: top; }
+.theme-desk-actions { display: flex; flex-wrap: wrap; gap: 8px 12px; margin: 0; padding: 0; list-style: none; }
+.theme-desk-meta, .theme-desk-message { margin: 4px 0 0; color: #50575e; font-size: 12px; }
+.theme-desk-message p { white-space: pre-wrap; }
+.theme-desk-alert:focus { outline: 2px solid currentColor; outline-offset: 2px; }
