@@ -1,0 +1,138 @@
+<?php
+
+/**
+ * The Create a ticket screen: form, saved tickets, changelog, and support note.
+ */
+
+namespace MattHummel\ThemeDesk;
+
+use WP_Post;
+
+final class Screen
+{
+    public static function render(): void
+    {
+        $userId = get_current_user_id();
+        $user = wp_get_current_user();
+        $categories = Desk::categories();
+        $priorities = Desk::priorities();
+        $supportEmail = Desk::email();
+        $values = [
+            'name' => $user->display_name,
+            'email' => $user->user_email,
+            'subject' => '',
+            'category' => 'question',
+            'priority' => 'normal',
+            'page' => '',
+            'message' => '',
+            'report' => true,
+            'copy' => true,
+        ];
+        $problems = [];
+        $draft = Desk::draft($userId);
+        if ($draft !== null) {
+            foreach ($values as $key => $default) {
+                if (array_key_exists($key, $draft['data'])) {
+                    $values[$key] = $draft['data'][$key];
+                }
+            }
+            $problems = $draft['problems'];
+            Desk::forgetDraft($userId);
+        }
+
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- the result of a redirect, nothing is saved.
+        $notice = isset($_GET['theme_desk_notice']) ? sanitize_key(wp_unslash((string) $_GET['theme_desk_notice'])) : '';
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- the ticket reference from that redirect.
+        $reference = isset($_GET['ticket']) ? Desk::referenceOk(sanitize_text_field(wp_unslash((string) $_GET['ticket']))) : '';
+        $tickets = Desk::tickets();
+        ?>
+        <section class="theme-desk" id="theme-desk-top">
+          <h2><?php esc_html_e('Create a ticket', 'theme-desk'); ?></h2>
+          <p class="theme-desk-lede">
+            <?php
+            echo esc_html(sprintf(
+                /* translators: 1: product name, 2: support email address. */
+                __('Tell %1$s what happened. The ticket is saved on this site and emailed to %2$s. Replies come to the address you give below.', 'theme-desk'),
+                Desk::product(),
+                $supportEmail
+            ));
+        ?>
+          </p>
+
+          <div class="theme-desk-notes">
+            <section class="theme-desk-note" aria-labelledby="theme-desk-changes-title">
+              <h3 id="theme-desk-changes-title"><?php esc_html_e('Recent changes', 'theme-desk'); ?></h3>
+              <?php self::echoChanges(Desk::themeChangelog(), Desk::product()); ?>
+              <?php self::echoChanges(Desk::packageChangelog(), 'Theme Desk'); ?>
+            </section>
+            <section class="theme-desk-note" aria-labelledby="theme-desk-support-title">
+              <h3 id="theme-desk-support-title"><?php esc_html_e('Support', 'theme-desk'); ?></h3>
+              <?php self::echoMarkdown(Desk::supportNote()); ?>
+            </section>
+          </div>
+
+          <?php if ($notice !== '' || $problems !== []) { ?>
+          <div class="theme-desk-alert" id="theme-desk-notice" tabindex="-1">
+            <?php self::echoNotice($notice, $reference, $supportEmail); ?>
+            <?php if ($problems !== []) { ?>
+              <div class="notice notice-error inline">
+                <p><strong><?php esc_html_e('The ticket was not sent yet:', 'theme-desk'); ?></strong></p>
+                <ul>
+                  <?php foreach ($problems as $field => $problem) { ?>
+                    <li><a href="#theme-desk-<?php echo esc_attr($field); ?>"><?php echo esc_html($problem); ?></a></li>
+                  <?php } ?>
+                </ul>
+              </div>
+            <?php } ?>
+          </div>
+          <?php } ?>
+
+          <p class="description"><?php esc_html_e('Please do not put passwords, client names, or private details in a ticket.', 'theme-desk'); ?></p>
+          <p class="description"><span class="theme-desk-req" aria-hidden="true">*</span> <?php esc_html_e('marks a required field.', 'theme-desk'); ?></p>
+
+          <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" class="theme-desk-form">
+            <?php wp_nonce_field('theme_desk_submit'); ?>
+            <input type="hidden" name="action" value="theme_desk_submit">
+            <table class="form-table" role="presentation">
+              <tr>
+                <th scope="row"><label for="theme-desk-name"><?php esc_html_e('Your name', 'theme-desk'); ?> <span class="theme-desk-req" aria-hidden="true">*</span></label></th>
+                <td>
+                  <input type="text" class="regular-text" id="theme-desk-name" name="theme_desk_name" value="<?php echo esc_attr((string) $values['name']); ?>" maxlength="80" autocomplete="name" required<?php self::fieldAttrs('name', $problems); ?>>
+                  <?php self::fieldError('name', $problems); ?>
+                </td>
+              </tr>
+              <tr>
+                <th scope="row"><label for="theme-desk-email"><?php esc_html_e('Your email', 'theme-desk'); ?> <span class="theme-desk-req" aria-hidden="true">*</span></label></th>
+                <td>
+                  <input type="email" class="regular-text" id="theme-desk-email" name="theme_desk_email" value="<?php echo esc_attr((string) $values['email']); ?>" autocomplete="email" required<?php self::fieldAttrs('email', $problems, true); ?>>
+                  <p class="description" id="theme-desk-email-help"><?php esc_html_e('Where we send our reply.', 'theme-desk'); ?></p>
+                  <?php self::fieldError('email', $problems); ?>
+                </td>
+              </tr>
+              <tr>
+                <th scope="row"><label for="theme-desk-category"><?php esc_html_e('What is it about?', 'theme-desk'); ?></label></th>
+                <td>
+                  <select id="theme-desk-category" name="theme_desk_category">
+                    <?php foreach ($categories as $key => $label) { ?>
+                      <option value="<?php echo esc_attr($key); ?>" <?php selected((string) $values['category'], $key); ?>><?php echo esc_html($label); ?></option>
+                    <?php } ?>
+                  </select>
+                </td>
+              </tr>
+              <tr>
+                <th scope="row"><label for="theme-desk-priority"><?php esc_html_e('How urgent is it?', 'theme-desk'); ?></label></th>
+                <td>
+                  <select id="theme-desk-priority" name="theme_desk_priority">
+                    <?php foreach ($priorities as $key => $label) { ?>
+                      <option value="<?php echo esc_attr($key); ?>" <?php selected((string) $values['priority'], $key); ?>><?php echo esc_html($label); ?></option>
+                    <?php } ?>
+                  </select>
+                </td>
+              </tr>
+              <tr>
+                <th scope="row"><label for="theme-desk-subject"><?php esc_html_e('Subject', 'theme-desk'); ?> <span class="theme-desk-req" aria-hidden="true">*</span></label></th>
+                <td>
+                  <input type="text" class="large-text" id="theme-desk-subject" name="theme_desk_subject" value="<?php echo esc_attr((string) $values['subject']); ?>" maxlength="150" required<?php self::fieldAttrs('subject', $problems, true); ?>>
+                  <p class="description" id="theme-desk-subject-help"><?php esc_html_e('A few words, such as \u201cShowing form never sends\u201d.', 'theme-desk'); ?></p>
+                  <?php self::fieldError('subject', $problems); ?>
+       
