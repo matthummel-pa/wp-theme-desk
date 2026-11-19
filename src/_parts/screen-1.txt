@@ -1,0 +1,138 @@
+         </td>
+              </tr>
+              <tr>
+                <th scope="row"><label for="theme-desk-page"><?php esc_html_e('Page address', 'theme-desk'); ?></label></th>
+                <td>
+                  <input type="url" class="large-text" id="theme-desk-page" name="theme_desk_page" value="<?php echo esc_attr((string) $values['page']); ?>" maxlength="300" placeholder="https://" inputmode="url" aria-describedby="theme-desk-page-help">
+                  <p class="description" id="theme-desk-page-help"><?php esc_html_e('Optional. The page where it happens, if there is one.', 'theme-desk'); ?></p>
+                </td>
+              </tr>
+              <tr>
+                <th scope="row"><label for="theme-desk-message"><?php esc_html_e('What happened?', 'theme-desk'); ?> <span class="theme-desk-req" aria-hidden="true">*</span></label></th>
+                <td>
+                  <textarea id="theme-desk-message" name="theme_desk_message" class="large-text" rows="9" maxlength="5000" required<?php self::fieldAttrs('message', $problems, true); ?>><?php echo esc_textarea((string) $values['message']); ?></textarea>
+                  <p class="description" id="theme-desk-message-help"><?php esc_html_e('What you did, what you expected, and what you saw instead.', 'theme-desk'); ?></p>
+                  <?php self::fieldError('message', $problems); ?>
+                </td>
+              </tr>
+              <tr>
+                <th scope="row"><?php esc_html_e('Send with the ticket', 'theme-desk'); ?></th>
+                <td>
+                  <fieldset>
+                    <legend class="screen-reader-text"><?php esc_html_e('Send with the ticket', 'theme-desk'); ?></legend>
+                    <label class="theme-desk-check"><input type="checkbox" name="theme_desk_report" value="1" <?php checked(! empty($values['report'])); ?>> <?php esc_html_e('The system report (versions and checks; never passwords or client details).', 'theme-desk'); ?></label>
+                    <label class="theme-desk-check"><input type="checkbox" name="theme_desk_copy" value="1" <?php checked(! empty($values['copy'])); ?>> <?php echo esc_html(sprintf(
+                        /* translators: %s: the email address on the sender's WordPress account. */
+                        __('Email me a copy of this ticket (to %s, the address on your WordPress account).', 'theme-desk'),
+                        $user->user_email
+                    )); ?></label>
+                    <details class="theme-desk-preview">
+                      <summary><?php esc_html_e('See exactly what the system report contains', 'theme-desk'); ?></summary>
+                      <label class="screen-reader-text" for="theme-desk-report-preview"><?php esc_html_e('System report that will be sent', 'theme-desk'); ?></label>
+                      <textarea id="theme-desk-report-preview" class="large-text code" rows="10" readonly><?php echo esc_textarea(Desk::report()); ?></textarea>
+                    </details>
+                  </fieldset>
+                </td>
+              </tr>
+            </table>
+            <p class="theme-desk-submit">
+              <button type="submit" class="button button-primary"><?php esc_html_e('Send ticket', 'theme-desk'); ?></button>
+              <span class="description"><?php esc_html_e('Sent by email from this site. A copy is kept in the list below.', 'theme-desk'); ?></span>
+            </p>
+          </form>
+
+          <h3><?php esc_html_e('Tickets from this site', 'theme-desk'); ?></h3>
+          <?php if ($tickets === []) { ?>
+            <p class="description"><?php esc_html_e('Nothing sent yet. Tickets you send will be listed here with their reference numbers.', 'theme-desk'); ?></p>
+          <?php } else { ?>
+            <?php self::echoList($tickets, $supportEmail, $categories); ?>
+          <?php } ?>
+        </section>
+        <?php
+    }
+
+    private static function echoChanges(string $markdown, string $label): void
+    {
+        $section = Desk::latestSection($markdown);
+        if ($section === '') {
+            return;
+        }
+        echo '<h4>'.esc_html($label).'</h4>';
+        self::echoMarkdown($section);
+    }
+
+    private static function echoNotice(string $notice, string $reference, string $supportEmail): void
+    {
+        $shown = $reference !== '' ? $reference : __('your ticket', 'theme-desk');
+        if ($notice === 'ticket-sent') {
+            echo '<div class="notice notice-success inline" role="status"><p><strong>'.esc_html(sprintf(
+                /* translators: %s: ticket reference. */
+                __('Ticket %s is on its way.', 'theme-desk'),
+                $shown
+            )).'</strong> '.esc_html(sprintf(
+                /* translators: %s: support email address. */
+                __('It was emailed to %s. Replies come to the address you gave us. Quote the ticket number if you write again.', 'theme-desk'),
+                $supportEmail
+            )).'</p></div>';
+
+            return;
+        }
+        if ($notice === 'ticket-failed') {
+            echo '<div class="notice notice-warning inline" role="alert"><p><strong>'.esc_html(sprintf(
+                /* translators: %s: ticket reference. */
+                __('Ticket %s is saved, but the email could not be sent from this site.', 'theme-desk'),
+                $shown
+            )).'</strong> '.esc_html__('This usually means the site has no working email setup. Use Send again in the list below once it is fixed, or email us yourself with the link there.', 'theme-desk').'</p></div>';
+
+            return;
+        }
+        if ($notice === 'ticket-wait') {
+            echo '<div class="notice notice-warning inline" role="alert"><p>'.esc_html__('Please wait a few seconds before sending another ticket.', 'theme-desk').'</p></div>';
+
+            return;
+        }
+        if ($notice === 'ticket-hour') {
+            echo '<div class="notice notice-warning inline" role="alert"><p>'.esc_html__('You have reached the hourly limit for tickets from this site. Please wait a while, or reply to the email from your last ticket to add details.', 'theme-desk').'</p></div>';
+
+            return;
+        }
+        if ($notice === 'ticket-error') {
+            echo '<div class="notice notice-error inline" role="alert"><p>'.esc_html__('The ticket could not be saved. Please try again.', 'theme-desk').'</p></div>';
+
+            return;
+        }
+        if ($notice === 'ticket-removed') {
+            echo '<div class="notice notice-success inline" role="status"><p>'.esc_html__('The ticket was removed from this list.', 'theme-desk').'</p></div>';
+        }
+    }
+
+    /**
+     * @param  array<string, string>  $problems
+     */
+    private static function fieldAttrs(string $key, array $problems, bool $hasHelp = false): void
+    {
+        $ids = [];
+        if ($hasHelp) {
+            $ids[] = 'theme-desk-'.$key.'-help';
+        }
+        if (isset($problems[$key])) {
+            $ids[] = 'theme-desk-'.$key.'-error';
+            echo ' aria-invalid="true"';
+        }
+        if ($ids !== []) {
+            echo ' aria-describedby="'.esc_attr(implode(' ', $ids)).'"';
+        }
+    }
+
+    /**
+     * @param  array<string, string>  $problems
+     */
+    private static function fieldError(string $key, array $problems): void
+    {
+        if (! isset($problems[$key])) {
+            return;
+        }
+        printf(
+            '<p class="theme-desk-error" id="theme-desk-%1$s-error"><strong>%2$s</strong></p>',
+            esc_attr($key),
+            esc_html(
